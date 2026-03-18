@@ -1,8 +1,11 @@
 import axios from 'axios'
 
+// 从环境变量获取后端API地址
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE_URL}/api`,
   timeout: 60000
 })
 

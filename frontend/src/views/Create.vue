@@ -20,24 +20,22 @@
             <el-upload
               class="avatar-uploader"
               :show-file-list="false"
-              :on-success="handleChildPhotoSuccess"
-              :before-upload="beforeUpload"
-              action="/api/upload"
+              :before-upload="handleChildPhotoUpload"
+              action="#"
             >
               <img v-if="formData.child_photo" :src="formData.child_photo" class="avatar" />
               <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
             </el-upload>
             <p class="tip">请上传清晰的正面照片，光线充足</p>
           </div>
-          
+
           <div class="upload-item">
             <h3>2. 上传玩具照片</h3>
             <el-upload
               class="avatar-uploader"
               :show-file-list="false"
-              :on-success="handleToyPhotoSuccess"
-              :before-upload="beforeUpload"
-              action="/api/upload"
+              :before-upload="handleToyPhotoUpload"
+              action="#"
             >
               <img v-if="formData.toy_photo" :src="formData.toy_photo" class="avatar" />
               <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
@@ -266,7 +264,7 @@ const canProceed = computed(() => {
 function beforeUpload(file) {
   const isJPGOrPNG = file.type === 'image/jpeg' || file.type === 'image/png'
   const isLt2M = file.size / 1024 / 1024 < 2
-  
+
   if (!isJPGOrPNG) {
     ElMessage.error('只能上传JPG或PNG格式的图片')
     return false
@@ -278,14 +276,46 @@ function beforeUpload(file) {
   return true
 }
 
-function handleChildPhotoSuccess(response) {
-  formData.value.child_photo = response.url
-  ElMessage.success('孩子照片上传成功')
+// 将文件转为 base64
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = error => reject(error)
+  })
 }
 
-function handleToyPhotoSuccess(response) {
-  formData.value.toy_photo = response.url
-  ElMessage.success('玩具照片上传成功')
+// 处理孩子照片上传
+async function handleChildPhotoUpload(file) {
+  const isValid = beforeUpload(file)
+  if (!isValid) return false
+
+  try {
+    const base64 = await fileToBase64(file)
+    formData.value.child_photo = base64
+    ElMessage.success('孩子照片上传成功')
+  } catch (error) {
+    ElMessage.error('照片处理失败')
+  }
+
+  return false // 阻止自动上传
+}
+
+// 处理玩具照片上传
+async function handleToyPhotoUpload(file) {
+  const isValid = beforeUpload(file)
+  if (!isValid) return false
+
+  try {
+    const base64 = await fileToBase64(file)
+    formData.value.toy_photo = base64
+    ElMessage.success('玩具照片上传成功')
+  } catch (error) {
+    ElMessage.error('照片处理失败')
+  }
+
+  return false // 阻止自动上传
 }
 
 function nextStep() {
