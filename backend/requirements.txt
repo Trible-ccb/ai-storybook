@@ -10,3 +10,4 @@ dashscope==1.14.1
 Pillow==10.1.0
 requests==2.31.0
 gunicorn==21.2.0
+oss2==2.19.1
