@@ -44,7 +44,9 @@ class Config:
     OSS_ENDPOINT = os.getenv('OSS_ENDPOINT')
     
     # 通义千问API配置
-    DASHSCOPE_API_KEY = os.getenv('DASHSCOPE_API_KEY')
+    # 支持两个环境变量名：QWEN_API_KEY 和 DASHSCOPE_API_KEY
+    # 优先使用 QWEN_API_KEY
+    DASHSCOPE_API_KEY = os.getenv('QWEN_API_KEY') or os.getenv('DASHSCOPE_API_KEY')
     
     # 支付配置
     WECHAT_PAY_APP_ID = os.getenv('WECHAT_PAY_APP_ID')
