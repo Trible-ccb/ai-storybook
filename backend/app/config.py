@@ -12,7 +12,8 @@ class Config:
     
     # 服务器配置
     SERVER_HOST = os.getenv('SERVER_HOST', '0.0.0.0')
-    SERVER_PORT = int(os.getenv('SERVER_PORT', 5000))
+    # 支持 Render 的 PORT 环境变量，默认为 5000
+    SERVER_PORT = int(os.getenv('PORT', os.getenv('SERVER_PORT', 5000)))
     
     # 数据库配置
     DB_HOST = os.getenv('DB_HOST', 'localhost')
