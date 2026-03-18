@@ -91,6 +91,48 @@ pnpm run dev
 
 前端服务将运行在 `http://localhost:3000`
 
+---
+
+## 🚀 云端部署（推荐）
+
+### 一键部署（免费）
+
+如果你想快速部署到云端并获取公网访问地址，我们有以下选项：
+
+#### 方法一：使用自动化脚本（最简单）
+
+```bash
+# 克隆项目
+git clone https://github.com/Trible-ccb/ai-storybook.git
+cd ai-storybook
+
+# 运行一键部署脚本
+chmod +x deploy.sh
+./deploy.sh
+```
+
+脚本会自动：
+- ✅ 部署前端到 Vercel（免费）
+- ✅ 指导部署后端到 Render（免费）
+- ✅ 配置前后端连接
+- ✅ 提供公网访问地址
+
+#### 方法二：手动部署
+
+详见：[DEPLOYMENT.md](DEPLOYMENT.md) - 完整的云端部署指南
+
+**部署平台**：
+- **前端**：Vercel（免费，全球 CDN，自动 HTTPS）
+- **后端**：Render（免费套餐，Python 托管）
+
+**总费用**：完全免费 ✅
+
+**部署后访问地址**：
+- 前端：`https://ai-storybook-xxxx.vercel.app`
+- 后端：`https://ai-storybook-backend.onrender.com`
+
+---
+
 ## 项目结构
 
 ```
