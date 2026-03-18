@@ -1,0 +1,6 @@
+# Vercel 部署配置
+# 复制以下内容到 Vercel 环境变量
+
+VITE_API_URL=https://ai-storybook-backend.onrender.com
+
+# 注意：部署后端后，需要更新为实际的后端地址
