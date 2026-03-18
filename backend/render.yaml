@@ -1,0 +1,29 @@
+version: "1"
+services:
+  - type: web
+    name: ai-storybook-backend
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app/main.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.9.0"
+      - key: PORT
+        value: "10000"
+      - key: QWEN_API_KEY
+        sync: false
+      - key: WANXIANG_API_KEY
+        sync: false
+      - key: OSS_ACCESS_KEY_ID
+        sync: false
+      - key: OSS_ACCESS_KEY_SECRET
+        sync: false
+      - key: OSS_BUCKET_NAME
+        sync: false
+      - key: OSS_ENDPOINT
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
