@@ -4,9 +4,10 @@ import axios from 'axios'
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 // 创建axios实例
+// 降低超时时间到 30 秒，因为 Render 免费版有请求时间限制
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 120000 // 2分钟超时
+  timeout: 30000 // 30秒超时，符合 Render 免费版限制
 })
 
 // 请求拦截器
@@ -26,6 +27,17 @@ api.interceptors.response.use(
   },
   error => {
     console.error('API错误:', error)
+
+    // 处理超时错误
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      console.warn('请求超时，这可能是正常的，因为任务正在后台处理')
+      // 返回特殊错误，让调用方可以处理
+      return Promise.reject({
+        isTimeout: true,
+        message: '请求超时，但任务可能正在后台处理中'
+      })
+    }
+
     return Promise.reject(error)
   }
 )
@@ -103,7 +115,13 @@ export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAtt
         setTimeout(poll, interval)
 
       } catch (error) {
-        reject(error)
+        // 如果是网络错误，继续尝试轮询
+        if (error.isNetworkError || error.code === 'ECONNRESET') {
+          console.warn('网络错误，继续轮询...')
+          setTimeout(poll, interval)
+        } else {
+          reject(error)
+        }
       }
     }
 

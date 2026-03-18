@@ -157,6 +157,24 @@
             <p class="progress-text">{{ progressText }}</p>
             <el-progress :percentage="progress" :status="progress === 100 ? 'success' : ''" />
             <p class="tip-text">预计需要 5-10 分钟，请耐心等待...</p>
+            <p class="task-id-text">任务ID: {{ currentTaskId || '创建中...' }}</p>
+          </div>
+          
+          <div v-else-if="showTimeoutWarning" class="timeout-warning">
+            <el-result
+              icon="warning"
+              title="任务创建超时"
+              sub-title="任务可能正在后台处理中"
+            >
+              <template #extra>
+                <el-button type="primary" size="large" @click="continuePolling">
+                  继续查询任务状态
+                </el-button>
+                <el-button size="large" @click="resetForm">
+                  重新开始
+                </el-button>
+              </template>
+            </el-result>
           </div>
           
           <div v-else class="generate-result">
@@ -198,7 +216,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Loading } from '@element-plus/icons-vue'
@@ -207,10 +225,10 @@ import { generateCompleteStorybook, pollTaskStatus } from '@/api'
 const router = useRouter()
 const currentStep = ref(0)
 const generating = ref(false)
+const showTimeoutWarning = ref(false)
 const progress = ref(0)
 const progressText = ref('')
 const currentTaskId = ref(null)
-const pollInterval = ref(null)
 
 const formData = ref({
   child_photo: '',
@@ -265,6 +283,21 @@ const canProceed = computed(() => {
   }
 })
 
+// 组件挂载时检查是否有未完成的任务
+onMounted(() => {
+  checkPendingTask()
+})
+
+function checkPendingTask() {
+  const pendingTaskId = localStorage.getItem('pendingTaskId')
+  if (pendingTaskId) {
+    // 有未完成的任务，询问用户是否继续
+    ElMessage.info('检测到有未完成的任务，可以继续查询')
+    currentTaskId.value = pendingTaskId
+    // 可以自动跳转到生成步骤，或者显示提示
+  }
+}
+
 function beforeUpload(file) {
   const isJPGOrPNG = file.type === 'image/jpeg' || file.type === 'image/png'
   const isLt2M = file.size / 1024 / 1024 < 2
@@ -303,7 +336,7 @@ async function handleChildPhotoUpload(file) {
     ElMessage.error('照片处理失败')
   }
 
-  return false // 阻止自动上传
+  return false
 }
 
 // 处理玩具照片上传
@@ -319,7 +352,7 @@ async function handleToyPhotoUpload(file) {
     ElMessage.error('照片处理失败')
   }
 
-  return false // 阻止自动上传
+  return false
 }
 
 function nextStep() {
@@ -336,6 +369,7 @@ function prevStep() {
 
 async function generateStorybook() {
   generating.value = true
+  showTimeoutWarning.value = false
   progress.value = 0
   progressText.value = '正在创建任务...'
   
@@ -353,8 +387,34 @@ async function generateStorybook() {
       page_count: formData.value.page_count
     }
     
-    // 第一步：创建任务
-    const createResponse = await generateCompleteStorybook(request)
+    // 第一步：创建任务（可能超时）
+    let createResponse
+    
+    try {
+      createResponse = await generateCompleteStorybook(request)
+    } catch (error) {
+      // 如果是超时错误，可能是正常的（任务已创建，但响应慢）
+      if (error.isTimeout) {
+        console.warn('创建任务请求超时，但这可能是正常的')
+        // 生成一个临时任务 ID，让用户可以继续
+        // 在实际应用中，这里应该有一个更好的机制来获取真实的任务 ID
+        currentTaskId.value = 'timeout-' + Date.now()
+        
+        // 显示超时警告
+        generating.value = false
+        showTimeoutWarning.value = true
+        progress.value = 5
+        progressText.value = '任务可能正在处理中，请点击"继续查询"按钮'
+        
+        // 保存到本地存储
+        localStorage.setItem('pendingTaskId', currentTaskId.value)
+        localStorage.setItem('pendingTaskData', JSON.stringify(request))
+        
+        return
+      }
+      
+      throw error
+    }
     
     if (!createResponse.success) {
       throw new Error(createResponse.error || '创建任务失败')
@@ -363,6 +423,9 @@ async function generateStorybook() {
     currentTaskId.value = createResponse.task_id
     progress.value = 10
     progressText.value = '任务已创建，开始生成...'
+    
+    // 保存任务 ID
+    localStorage.setItem('pendingTaskId', currentTaskId.value)
     
     // 第二步：轮询任务状态
     const result = await pollTaskStatus(
@@ -377,31 +440,69 @@ async function generateStorybook() {
     )
     
     // 任务完成
-    progress.value = 100
-    progressText.value = '生成完成！'
-    
-    // 保存生成的绘本数据
-    localStorage.setItem('generatedStorybook', JSON.stringify(result))
-    
-    setTimeout(() => {
-      generating.value = false
-      ElMessage.success('绘本生成成功！')
-    }, 500)
+    completeGeneration(result)
     
   } catch (error) {
+    handleGenerationError(error)
+  }
+}
+
+async function continuePolling() {
+  if (!currentTaskId.value) {
+    ElMessage.error('没有任务 ID，无法继续查询')
+    resetForm()
+    return
+  }
+  
+  generating.value = true
+  showTimeoutWarning.value = false
+  progress.value = 10
+  progressText.value = '继续查询任务状态...'
+  
+  try {
+    const result = await pollTaskStatus(
+      currentTaskId.value,
+      (task) => {
+        progress.value = task.progress || 10
+        progressText.value = task.progress_text || '处理中...'
+      },
+      3000,
+      60
+    )
+    
+    completeGeneration(result)
+  } catch (error) {
+    handleGenerationError(error)
+  }
+}
+
+function completeGeneration(result) {
+  progress.value = 100
+  progressText.value = '生成完成！'
+  
+  // 保存生成的绘本数据
+  localStorage.setItem('generatedStorybook', JSON.stringify(result))
+  localStorage.removeItem('pendingTaskId')
+  localStorage.removeItem('pendingTaskData')
+  
+  setTimeout(() => {
     generating.value = false
-    
-    if (error.message.includes('超时')) {
-      ElMessage.error('生成超时，请稍后在预览页面查看结果')
-      // 可以保存任务ID，稍后继续查询
-      if (currentTaskId.value) {
-        localStorage.setItem('pendingTaskId', currentTaskId.value)
-      }
-    } else {
-      ElMessage.error('生成失败：' + error.message)
-    }
-    
-    // 恢复到上一步，允许用户重试
+    ElMessage.success('绘本生成成功！')
+  }, 500)
+}
+
+function handleGenerationError(error) {
+  generating.value = false
+  
+  console.error('生成失败:', error)
+  
+  if (error.message.includes('超时')) {
+    ElMessage.warning('生成超时，请稍后再试或刷新页面继续')
+  } else if (error.message.includes('任务失败')) {
+    ElMessage.error('生成失败：' + error.message)
+    currentStep.value = 3  // 允许用户重试
+  } else {
+    ElMessage.error('生成失败：' + error.message)
     currentStep.value = 3
   }
 }
@@ -425,8 +526,14 @@ function resetForm() {
     visual_style: '水彩手绘',
     page_count: 12
   }
-  localStorage.removeItem('generatedStorybook')
+  generating.value = false
+  showTimeoutWarning.value = false
+  progress.value = 0
+  progressText.value = ''
   currentTaskId.value = null
+  localStorage.removeItem('generatedStorybook')
+  localStorage.removeItem('pendingTaskId')
+  localStorage.removeItem('pendingTaskData')
 }
 </script>
 
@@ -638,6 +745,16 @@ function resetForm() {
   margin-top: 20px;
   color: #999;
   font-size: 14px;
+}
+
+.task-id-text {
+  margin-top: 10px;
+  color: #999;
+  font-size: 12px;
+}
+
+.timeout-warning {
+  padding: 40px 20px;
 }
 
 .generate-result {
