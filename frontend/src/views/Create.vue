@@ -156,6 +156,7 @@
             <h2>正在生成绘本...</h2>
             <p class="progress-text">{{ progressText }}</p>
             <el-progress :percentage="progress" :status="progress === 100 ? 'success' : ''" />
+            <p class="tip-text">预计需要 5-10 分钟，请耐心等待...</p>
           </div>
           
           <div v-else class="generate-result">
@@ -187,6 +188,7 @@
           type="primary" 
           @click="nextStep"
           :disabled="!canProceed"
+          :loading="currentStep === 3 && generating"
         >
           {{ currentStep === 3 ? '开始生成' : '下一步' }}
         </el-button>
@@ -200,13 +202,15 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Loading } from '@element-plus/icons-vue'
-import { generateCompleteStorybook } from '@/api'
+import { generateCompleteStorybook, pollTaskStatus } from '@/api'
 
 const router = useRouter()
 const currentStep = ref(0)
 const generating = ref(false)
 const progress = ref(0)
 const progressText = ref('')
+const currentTaskId = ref(null)
+const pollInterval = ref(null)
 
 const formData = ref({
   child_photo: '',
@@ -333,11 +337,9 @@ function prevStep() {
 async function generateStorybook() {
   generating.value = true
   progress.value = 0
-  progressText.value = '正在生成故事...'
+  progressText.value = '正在创建任务...'
   
   try {
-    progress.value = 20
-    
     const request = {
       age: formData.value.age,
       theme: formData.value.theme,
@@ -351,33 +353,56 @@ async function generateStorybook() {
       page_count: formData.value.page_count
     }
     
-    progress.value = 40
-    progressText.value = '正在生成插图...'
+    // 第一步：创建任务
+    const createResponse = await generateCompleteStorybook(request)
     
-    const response = await generateCompleteStorybook(request)
-    
-    progress.value = 80
-    progressText.value = '正在生成PDF...'
-    
-    if (response.success) {
-      // 保存生成的绘本数据
-      localStorage.setItem('generatedStorybook', JSON.stringify(response.storybook))
-      
-      progress.value = 100
-      progressText.value = '生成完成！'
-      
-      setTimeout(() => {
-        generating.value = false
-        ElMessage.success('绘本生成成功！')
-      }, 500)
-    } else {
-      generating.value = false
-      ElMessage.error(response.error || '生成失败，请重试')
+    if (!createResponse.success) {
+      throw new Error(createResponse.error || '创建任务失败')
     }
+    
+    currentTaskId.value = createResponse.task_id
+    progress.value = 10
+    progressText.value = '任务已创建，开始生成...'
+    
+    // 第二步：轮询任务状态
+    const result = await pollTaskStatus(
+      currentTaskId.value,
+      (task) => {
+        // 更新进度
+        progress.value = task.progress || 10
+        progressText.value = task.progress_text || '处理中...'
+      },
+      3000,  // 每3秒查询一次
+      60     // 最多查询60次（3分钟）
+    )
+    
+    // 任务完成
+    progress.value = 100
+    progressText.value = '生成完成！'
+    
+    // 保存生成的绘本数据
+    localStorage.setItem('generatedStorybook', JSON.stringify(result))
+    
+    setTimeout(() => {
+      generating.value = false
+      ElMessage.success('绘本生成成功！')
+    }, 500)
     
   } catch (error) {
     generating.value = false
-    ElMessage.error('生成失败：' + error.message)
+    
+    if (error.message.includes('超时')) {
+      ElMessage.error('生成超时，请稍后在预览页面查看结果')
+      // 可以保存任务ID，稍后继续查询
+      if (currentTaskId.value) {
+        localStorage.setItem('pendingTaskId', currentTaskId.value)
+      }
+    } else {
+      ElMessage.error('生成失败：' + error.message)
+    }
+    
+    // 恢复到上一步，允许用户重试
+    currentStep.value = 3
   }
 }
 
@@ -401,6 +426,7 @@ function resetForm() {
     page_count: 12
   }
   localStorage.removeItem('generatedStorybook')
+  currentTaskId.value = null
 }
 </script>
 
@@ -606,6 +632,12 @@ function resetForm() {
   margin-bottom: 30px;
   color: #666;
   font-size: 16px;
+}
+
+.tip-text {
+  margin-top: 20px;
+  color: #999;
+  font-size: 14px;
 }
 
 .generate-result {

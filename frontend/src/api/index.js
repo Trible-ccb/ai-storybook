@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 // 创建axios实例
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 60000
+  timeout: 120000 // 2分钟超时
 })
 
 // 请求拦截器
@@ -38,10 +38,78 @@ export async function generateStory(data) {
 }
 
 /**
- * 一键生成完整绘本
+ * 一键生成完整绘本（异步）
+ * 立即返回 task_id，需要轮询查询状态
  */
 export async function generateCompleteStorybook(data) {
   return api.post('/generate-complete-storybook', data)
+}
+
+/**
+ * 查询任务状态
+ */
+export async function getTaskStatus(taskId) {
+  return api.get(`/task/${taskId}`)
+}
+
+/**
+ * 轮询任务状态，直到完成或失败
+ * @param {string} taskId - 任务ID
+ * @param {function} onProgress - 进度回调函数
+ * @param {number} interval - 轮询间隔（毫秒）
+ * @param {number} maxAttempts - 最大尝试次数
+ * @returns {Promise} 返回任务结果
+ */
+export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAttempts = 60) {
+  let attempts = 0
+
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        attempts += 1
+
+        const response = await getTaskStatus(taskId)
+
+        if (!response.success) {
+          reject(new Error(response.error))
+          return
+        }
+
+        const task = response.task
+
+        // 调用进度回调
+        if (onProgress) {
+          onProgress(task)
+        }
+
+        // 检查任务状态
+        if (task.status === 'completed') {
+          resolve(task.result)
+          return
+        }
+
+        if (task.status === 'failed') {
+          reject(new Error(task.error || '任务失败'))
+          return
+        }
+
+        // 检查是否超过最大尝试次数
+        if (attempts >= maxAttempts) {
+          reject(new Error('任务超时，请稍后再试'))
+          return
+        }
+
+        // 继续轮询
+        setTimeout(poll, interval)
+
+      } catch (error) {
+        reject(error)
+      }
+    }
+
+    // 开始轮询
+    poll()
+  })
 }
 
 export default api
