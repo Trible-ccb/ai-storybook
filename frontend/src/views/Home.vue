@@ -14,9 +14,9 @@
           <router-link to="/create" class="btn btn-primary">
             开始创作
           </router-link>
-          <button class="btn btn-secondary" @click="scrollToExamples">
-            查看案例
-          </button>
+          <router-link to="/tasks" class="btn btn-secondary">
+            我的任务
+          </router-link>
         </div>
       </div>
       
@@ -53,6 +53,16 @@
             <div class="feature-icon">⏱️</div>
             <h3>快速生成</h3>
             <p>5-10 分钟完成整个绘本制作</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💾</div>
+            <h3>任务管理</h3>
+            <p>支持断点续传，失败后可重试</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3>随时查看</h3>
+            <p>任务列表中随时查看所有创作</p>
           </div>
         </div>
       </div>
@@ -189,8 +199,8 @@
             <p>A: 通常需要 5-10 分钟，取决于选择的套餐和服务器负载。</p>
           </div>
           <div class="faq-item">
-            <h3>Q: 可以修改已生成的绘本吗？</h3>
-            <p>A: 可以重新生成，每次生成的结果都是独特的。</p>
+            <h3>Q: 如果生成失败了怎么办？</h3>
+            <p>A: 我们支持断点续传，失败后可以在"我的任务"中重试，从失败点继续生成。</p>
           </div>
           <div class="faq-item">
             <h3>Q: 支持哪些年龄段？</h3>
@@ -199,6 +209,10 @@
           <div class="faq-item">
             <h3>Q: 如何保证故事内容的适龄性？</h3>
             <p>A: 我们的 AI 经过专门训练，会根据孩子年龄调整词汇量和主题复杂度。</p>
+          </div>
+          <div class="faq-item">
+            <h3>Q: 生成过程中可以关闭页面吗？</h3>
+            <p>A: 可以！任务在后台运行，您可以在"我的任务"页面随时查看进度。</p>
           </div>
         </div>
       </div>

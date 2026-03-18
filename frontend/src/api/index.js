@@ -4,10 +4,9 @@ import axios from 'axios'
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 // 创建axios实例
-// 降低超时时间到 30 秒，因为 Render 免费版有请求时间限制
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 30000 // 30秒超时，符合 Render 免费版限制
+  timeout: 30000 // 30秒超时
 })
 
 // 请求拦截器
@@ -28,10 +27,7 @@ api.interceptors.response.use(
   error => {
     console.error('API错误:', error)
 
-    // 处理超时错误
     if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-      console.warn('请求超时，这可能是正常的，因为任务正在后台处理')
-      // 返回特殊错误，让调用方可以处理
       return Promise.reject({
         isTimeout: true,
         message: '请求超时，但任务可能正在后台处理中'
@@ -50,8 +46,7 @@ export async function generateStory(data) {
 }
 
 /**
- * 一键生成完整绘本（异步）
- * 立即返回 task_id，需要轮询查询状态
+ * 一键生成完整绘本（持久化任务）
  */
 export async function generateCompleteStorybook(data) {
   return api.post('/generate-complete-storybook', data)
@@ -65,14 +60,34 @@ export async function getTaskStatus(taskId) {
 }
 
 /**
- * 轮询任务状态，直到完成或失败
- * @param {string} taskId - 任务ID
- * @param {function} onProgress - 进度回调函数
- * @param {number} interval - 轮询间隔（毫秒）
- * @param {number} maxAttempts - 最大尝试次数
- * @returns {Promise} 返回任务结果
+ * 获取任务列表
  */
-export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAttempts = 60) {
+export async function getTasks(limit = 20, offset = 0, status = null) {
+  const params = { limit, offset }
+  if (status) {
+    params.status = status
+  }
+  return api.get('/tasks', { params })
+}
+
+/**
+ * 重试任务
+ */
+export async function retryTask(taskId) {
+  return api.post(`/task/${taskId}/retry`)
+}
+
+/**
+ * 删除任务
+ */
+export async function deleteTask(taskId) {
+  return api.delete(`/task/${taskId}`)
+}
+
+/**
+ * 轮询任务状态，直到完成或失败
+ */
+export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAttempts = 200) {
   let attempts = 0
 
   return new Promise((resolve, reject) => {
@@ -91,7 +106,7 @@ export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAtt
 
         // 调用进度回调
         if (onProgress) {
-          onProgress(task)
+          onProgress(task, response.progress || [])
         }
 
         // 检查任务状态
@@ -101,7 +116,7 @@ export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAtt
         }
 
         if (task.status === 'failed') {
-          reject(new Error(task.error || '任务失败'))
+          reject(new Error(task.error_message || '任务失败'))
           return
         }
 
@@ -125,7 +140,6 @@ export async function pollTaskStatus(taskId, onProgress, interval = 3000, maxAtt
       }
     }
 
-    // 开始轮询
     poll()
   })
 }

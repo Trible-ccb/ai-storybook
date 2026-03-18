@@ -12,6 +12,11 @@ const routes = [
     component: () => import('@/views/Create.vue')
   },
   {
+    path: '/tasks',
+    name: 'Tasks',
+    component: () => import('@/views/Tasks.vue')
+  },
+  {
     path: '/preview',
     name: 'Preview',
     component: () => import('@/views/Preview.vue')

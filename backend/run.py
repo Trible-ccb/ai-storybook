@@ -49,10 +49,16 @@ def create_app(config_name='default'):
     # 初始化数据库
     db.init_app(app)
 
+    # 初始化数据库表
+    with app.app_context():
+        db.create_all()
+
     # 注册蓝图
     from app.api.story import story_bp
+    from app.api.task import task_bp
 
     app.register_blueprint(story_bp)
+    app.register_blueprint(task_bp)
 
     # 注册错误处理器
     register_error_handlers(app)
@@ -62,18 +68,27 @@ def create_app(config_name='default'):
     def index():
         return jsonify({
             'name': 'AI Storybook API',
-            'version': '1.0.0',
+            'version': '2.0.0',
             'status': 'running',
+            'features': {
+                'task_management': True,
+                'retry_support': True,
+                'breakpoint_resume': True
+            },
             'endpoints': {
                 'story': '/api/generate-story',
-                'complete': '/api/generate-complete-storybook'
+                'complete': '/api/generate-complete-storybook',
+                'tasks': '/api/tasks',
+                'task_detail': '/api/task/<id>',
+                'retry': '/api/task/<id>/retry'
             }
         })
 
     @app.route('/health')
     def health():
         return jsonify({
-            'status': 'healthy'
+            'status': 'healthy',
+            'database': 'connected'
         })
 
     logger.info(f"应用启动成功，配置: {config_name}")
