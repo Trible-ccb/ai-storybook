@@ -1,7 +1,7 @@
 """
 故事生成API - 使用持久化任务系统
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import logging
 import threading
 from app.services.task_service import TaskService
@@ -130,7 +130,11 @@ def generate_complete_storybook():
         )
 
         # 在后台线程中处理任务
-        processor = TaskProcessor(task.id, data)
+        # 传递 Flask 应用实例到后台线程
+        from flask import current_app
+        app = current_app._get_current_object()
+        
+        processor = TaskProcessor(task.id, data, app=app)
         thread = threading.Thread(target=processor.process)
         thread.daemon = True
         thread.start()

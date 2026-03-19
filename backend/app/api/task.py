@@ -1,7 +1,7 @@
 """
 任务管理API
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import logging
 import threading
 from app.models.task import Task
@@ -130,9 +130,12 @@ def retry_task(task_id):
             }), 400
 
         # 在后台线程中重试
+        # 传递 Flask 应用实例到后台线程
+        app = current_app._get_current_object()
+        
         thread = threading.Thread(
             target=TaskProcessor.retry_task,
-            args=(task_id,)
+            args=(task_id, app)
         )
         thread.daemon = True
         thread.start()

@@ -2,6 +2,8 @@
 任务处理器 - 支持断点续传
 """
 import logging
+from flask import current_app
+from app.extensions import db
 from app.services.task_service import TaskService
 from app.services.llm_service import LLMService
 from app.services.image_service import ImageService
@@ -13,21 +15,34 @@ logger = logging.getLogger(__name__)
 class TaskProcessor:
     """任务处理器"""
 
-    def __init__(self, task_id, data=None):
+    def __init__(self, task_id, data=None, app=None):
         """
         初始化处理器
 
         Args:
             task_id: 任务ID
             data: 任务数据（如果是新任务）
+            app: Flask应用实例（用于后台线程）
         """
         self.task_id = task_id
         self.data = data
         self.task = None
+        self.app = app
 
     def process(self):
         """
         处理任务（支持断点续传）
+        """
+        # 如果在后台线程中，需要推送应用上下文
+        if self.app:
+            with self.app.app_context():
+                return self._do_process()
+        else:
+            return self._do_process()
+
+    def _do_process(self):
+        """
+        实际的处理逻辑
         """
         try:
             # 获取任务
@@ -250,28 +265,37 @@ class TaskProcessor:
         )
 
     @staticmethod
-    def retry_task(task_id):
+    def retry_task(task_id, app=None):
         """
         重试失败的任务
 
         Args:
             task_id: 任务ID
+            app: Flask应用实例（用于后台线程）
 
         Returns:
             success: 是否成功
         """
-        try:
-            task = TaskService.get_task(task_id)
-            if not task:
+        def _do_retry():
+            try:
+                task = TaskService.get_task(task_id)
+                if not task:
+                    return False
+
+                # 增加重试次数
+                TaskService.increment_retry_count(task_id)
+
+                # 创建处理器并处理
+                processor = TaskProcessor(task_id, app=app)
+                return processor.process()
+
+            except Exception as e:
+                logger.error(f"重试任务失败: {task_id}, 错误: {str(e)}")
                 return False
 
-            # 增加重试次数
-            TaskService.increment_retry_count(task_id)
-
-            # 创建处理器并处理
-            processor = TaskProcessor(task_id)
-            return processor.process()
-
-        except Exception as e:
-            logger.error(f"重试任务失败: {task_id}, 错误: {str(e)}")
-            return False
+        # 如果在后台线程中，需要推送应用上下文
+        if app:
+            with app.app_context():
+                return _do_retry()
+        else:
+            return _do_retry()

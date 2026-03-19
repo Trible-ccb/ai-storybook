@@ -36,9 +36,9 @@ def create_app(config_name='default'):
     from app.config import config
     app.config.from_object(config[config_name])
 
-    # 启用CORS
+    # 启用CORS - 允许所有路由
     CORS(app, resources={
-        r"/api/*": {
+        r"/*": {
             "origins": "*",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"]
