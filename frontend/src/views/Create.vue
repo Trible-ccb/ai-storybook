@@ -288,13 +288,43 @@ onMounted(() => {
   checkPendingTask()
 })
 
-function checkPendingTask() {
+async function checkPendingTask() {
   const pendingTaskId = localStorage.getItem('pendingTaskId')
-  if (pendingTaskId) {
-    // 有未完成的任务，询问用户是否继续
-    ElMessage.info('检测到有未完成的任务，可以继续查询')
-    currentTaskId.value = pendingTaskId
-    // 可以自动跳转到生成步骤，或者显示提示
+  if (!pendingTaskId) {
+    return
+  }
+
+  try {
+    // 验证任务是否真实存在且未完成
+    const response = await getTaskStatus(pendingTaskId)
+    
+    if (response.success && response.task) {
+      const task = response.task
+      
+      // 只有当任务存在且未完成时才提示
+      if (task.status !== 'completed' && task.status !== 'failed') {
+        ElMessage({
+          message: '检测到有未完成的任务，可以继续查询',
+          type: 'info',
+          duration: 5000,
+          showClose: true
+        })
+        currentTaskId.value = pendingTaskId
+      } else {
+        // 任务已完成或失败，清除缓存
+        localStorage.removeItem('pendingTaskId')
+        localStorage.removeItem('pendingTaskData')
+      }
+    } else {
+      // 任务不存在，清除缓存
+      localStorage.removeItem('pendingTaskId')
+      localStorage.removeItem('pendingTaskData')
+    }
+  } catch (error) {
+    // 查询失败，清除缓存
+    console.warn('检查未完成任务失败:', error)
+    localStorage.removeItem('pendingTaskId')
+    localStorage.removeItem('pendingTaskData')
   }
 }
 

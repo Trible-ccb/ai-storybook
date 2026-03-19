@@ -18,7 +18,7 @@ def get_tasks():
     获取任务列表
 
     Query参数:
-    - limit: 返回数量（默认20）
+    - limit: 返回数量（默认20，最大50）
     - offset: 偏移量（默认0）
     - status: 状态过滤（可选）
 
@@ -30,15 +30,20 @@ def get_tasks():
     }
     """
     try:
-        limit = int(request.args.get('limit', 20))
+        # 限制最大查询数量
+        limit = min(int(request.args.get('limit', 20)), 50)
         offset = int(request.args.get('offset', 0))
         status = request.args.get('status')
 
-        tasks = TaskService.get_tasks(limit, offset)
-
+        # 查询任务（按创建时间倒序）
+        query = Task.query.order_by(Task.created_at.desc())
+        
         # 过滤状态
         if status:
-            tasks = [t for t in tasks if t.status == status]
+            query = query.filter(Task.status == status)
+        
+        # 执行查询
+        tasks = query.limit(limit).offset(offset).all()
 
         return jsonify({
             'success': True,

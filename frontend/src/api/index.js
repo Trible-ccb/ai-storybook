@@ -3,10 +3,16 @@ import axios from 'axios'
 // 从环境变量获取后端API地址
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
-// 创建axios实例
+// 创建axios实例 - 长超时（用于创建任务）
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: 30000 // 30秒超时
+})
+
+// 创建短超时实例（用于查询任务）
+const apiShort = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  timeout: 10000 // 10秒超时
 })
 
 // 请求拦截器
@@ -19,24 +25,35 @@ api.interceptors.request.use(
   }
 )
 
-// 响应拦截器
-api.interceptors.response.use(
-  response => {
-    return response.data
+apiShort.interceptors.request.use(
+  config => {
+    return config
   },
   error => {
-    console.error('API错误:', error)
-
-    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-      return Promise.reject({
-        isTimeout: true,
-        message: '请求超时，但任务可能正在后台处理中'
-      })
-    }
-
     return Promise.reject(error)
   }
 )
+
+// 响应拦截器
+const responseInterceptor = response => {
+  return response.data
+}
+
+const errorInterceptor = error => {
+  console.error('API错误:', error)
+
+  if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+    return Promise.reject({
+      isTimeout: true,
+      message: '请求超时，但任务可能正在后台处理中'
+    })
+  }
+
+  return Promise.reject(error)
+}
+
+api.interceptors.response.use(responseInterceptor, errorInterceptor)
+apiShort.interceptors.response.use(responseInterceptor, errorInterceptor)
 
 /**
  * 生成故事
@@ -56,7 +73,7 @@ export async function generateCompleteStorybook(data) {
  * 查询任务状态
  */
 export async function getTaskStatus(taskId) {
-  return api.get(`/task/${taskId}`)
+  return apiShort.get(`/task/${taskId}`)
 }
 
 /**
@@ -67,7 +84,7 @@ export async function getTasks(limit = 20, offset = 0, status = null) {
   if (status) {
     params.status = status
   }
-  return api.get('/tasks', { params })
+  return apiShort.get('/tasks', { params })
 }
 
 /**
@@ -81,7 +98,7 @@ export async function retryTask(taskId) {
  * 删除任务
  */
 export async function deleteTask(taskId) {
-  return api.delete(`/task/${taskId}`)
+  return apiShort.delete(`/task/${taskId}`)
 }
 
 /**

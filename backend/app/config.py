@@ -16,19 +16,18 @@ class Config:
     SERVER_PORT = int(os.getenv('PORT', os.getenv('SERVER_PORT', 5000)))
     
     # 数据库配置
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = os.getenv('DB_PORT', '3306')
-    DB_NAME = os.getenv('DB_NAME', 'ai_storybook')
-    DB_USER = os.getenv('DB_USER', 'root')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+    # 优先使用 DATABASE_URL 环境变量，如果没有则使用 SQLite
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if DATABASE_URL:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        # 使用 SQLite 作为默认数据库
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///aistorybook.db'
     
-    SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 3600,
-        'pool_size': 10,
-        'max_overflow': 20
     }
     
     # Redis配置
