@@ -22,7 +22,11 @@ class Config:
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
         # 使用 SQLite 作为默认数据库
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///aistorybook.db'
+        # 在生产环境（Render）使用 /tmp 目录确保可写
+        if os.getenv('RENDER') or os.getenv('FLASK_ENV') == 'production':
+            SQLALCHEMY_DATABASE_URI = 'sqlite:////tmp/aistorybook.db'
+        else:
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///aistorybook.db'
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {

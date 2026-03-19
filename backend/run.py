@@ -48,10 +48,6 @@ def create_app(config_name='default'):
     # 初始化数据库
     db.init_app(app)
 
-    # 初始化数据库表
-    with app.app_context():
-        db.create_all()
-
     # 注册蓝图
     from app.api.story import story_bp
     from app.api.task import task_bp
@@ -61,6 +57,14 @@ def create_app(config_name='default'):
 
     # 注册错误处理器
     register_error_handlers(app)
+
+    # 初始化数据库表（在蓝图注册后）
+    with app.app_context():
+        try:
+            db.create_all()
+            logger.info("数据库表初始化成功")
+        except Exception as e:
+            logger.error(f"数据库表初始化失败: {str(e)}")
 
     # 注册根路由
     @app.route('/')
@@ -85,10 +89,35 @@ def create_app(config_name='default'):
 
     @app.route('/health')
     def health():
+        try:
+            # 检查数据库连接
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
+            db_status = 'connected'
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+        
         return jsonify({
             'status': 'healthy',
-            'database': 'connected'
+            'database': db_status
         })
+
+    @app.route('/api/init-db', methods=['POST'])
+    def init_db():
+        """手动初始化数据库表"""
+        try:
+            db.create_all()
+            logger.info("数据库表手动初始化成功")
+            return jsonify({
+                'success': True,
+                'message': '数据库表初始化成功'
+            })
+        except Exception as e:
+            logger.error(f"数据库表初始化失败: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
     logger.info(f"应用启动成功，配置: {config_name}")
 
