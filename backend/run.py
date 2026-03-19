@@ -6,7 +6,6 @@ import sys
 import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
 
 # 添加当前目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -18,8 +17,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 初始化数据库
-db = SQLAlchemy()
+# 导入扩展
+from app.extensions import db
 
 def create_app(config_name='default'):
     """

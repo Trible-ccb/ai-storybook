@@ -4,6 +4,7 @@
 from flask import Blueprint, request, jsonify
 import logging
 import threading
+from app.models.task import Task
 from app.services.task_service import TaskService
 from app.services.task_processor import TaskProcessor
 

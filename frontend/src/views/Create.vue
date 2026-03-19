@@ -220,7 +220,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Loading } from '@element-plus/icons-vue'
-import { generateCompleteStorybook, pollTaskStatus } from '@/api'
+import { generateCompleteStorybook, pollTaskStatus, getTaskStatus } from '@/api'
 
 const router = useRouter()
 const currentStep = ref(0)

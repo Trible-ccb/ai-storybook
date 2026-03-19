@@ -222,15 +222,43 @@
     <footer class="footer">
       <div class="container">
         <p>&copy; 2024 AI 个性化绘本平台. All rights reserved.</p>
+        <div class="version-info">
+          <span>前端版本: {{ frontendVersion }}</span>
+          <span>|</span>
+          <span>后端版本: {{ backendVersion }}</span>
+          <span>|</span>
+          <span>构建时间: {{ buildTime }}</span>
+        </div>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
+
+// 版本信息
+const frontendVersion = ref('2.0.0')
+const backendVersion = ref('加载中...')
+const buildTime = ref('2024-03-18')
+
+onMounted(async () => {
+  // 获取后端版本信息
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+    const response = await axios.get(`${API_BASE_URL}/`)
+    if (response.data && response.data.version) {
+      backendVersion.value = response.data.version
+    }
+  } catch (error) {
+    console.warn('获取后端版本失败:', error)
+    backendVersion.value = '未知'
+  }
+})
 
 function goToCreate() {
   router.push('/create')
@@ -690,6 +718,20 @@ function scrollToExamples() {
   background: #333;
   color: white;
   text-align: center;
+}
+
+.footer p {
+  margin-bottom: 10px;
+}
+
+.footer .version-info {
+  font-size: 12px;
+  color: #999;
+  margin-top: 10px;
+}
+
+.footer .version-info span {
+  margin: 0 5px;
 }
 
 /* Responsive Design */

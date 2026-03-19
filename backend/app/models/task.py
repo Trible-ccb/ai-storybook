@@ -2,7 +2,7 @@
 任务数据库模型
 """
 from datetime import datetime
-from run import db
+from app.extensions import db
 
 
 class Task(db.Model):

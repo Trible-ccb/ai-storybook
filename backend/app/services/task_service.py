@@ -5,7 +5,7 @@ import uuid
 import json
 from datetime import datetime
 from app.models.task import Task, TaskProgress
-from run import db
+from app.extensions import db
 from flask import current_app
 
 
